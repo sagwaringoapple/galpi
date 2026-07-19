@@ -99,7 +99,7 @@
 .galpi-modal-body {
     flex: 1;
     min-height: 360px;
-    padding: 20px;
+    padding: 18px;
     overflow-y: auto;
 }
 
@@ -109,6 +109,65 @@
 
 .galpi-view.active {
     display: block;
+}
+
+.galpi-card-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.galpi-section-title {
+    font-size: 1.05rem;
+    font-weight: 750;
+}
+
+.galpi-muted {
+    margin-top: 2px;
+    font-size: .86rem;
+    opacity: .6;
+}
+
+.galpi-card-list {
+    display: grid;
+    gap: 12px;
+}
+
+.galpi-card {
+    display: grid;
+    gap: 9px;
+    padding: 13px;
+    border: 1px solid var(--SmartThemeBorderColor, #555);
+    border-radius: 14px;
+    background: rgba(255,255,255,.035);
+}
+
+.galpi-card-head {
+    display: flex;
+    gap: 9px;
+    align-items: center;
+}
+
+.galpi-card-title {
+    min-width: 0;
+    flex: 1;
+    font-weight: 700;
+}
+
+.galpi-card-content,
+.galpi-card-memo {
+    width: 100%;
+    resize: vertical;
+}
+
+.galpi-card-content {
+    min-height: 120px;
+}
+
+.galpi-card-memo {
+    min-height: 72px;
 }
 
 .galpi-empty {
@@ -123,12 +182,14 @@
     opacity: .72;
 }
 
-.galpi-empty-icon {
-    font-size: 34px;
+.galpi-card-empty {
+    min-height: 260px;
+    border: 1px dashed var(--SmartThemeBorderColor, #555);
+    border-radius: 14px;
 }
 
-.galpi-wide {
-    width: 100%;
+.galpi-empty-icon {
+    font-size: 34px;
 }
 
 .galpi-modal-footer {
@@ -136,12 +197,13 @@
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    padding: 12px 16px;
+    padding: 11px 16px;
     border-top: 1px solid var(--SmartThemeBorderColor, #444);
 }
 
+.galpi-save-state,
 .galpi-version {
-    font-size: .85rem;
+    font-size: .84rem;
     opacity: .55;
 }
 
@@ -175,5 +237,9 @@
 
     .galpi-modal-body {
         min-height: 0;
+    }
+
+    .galpi-card-head {
+        align-items: stretch;
     }
 }

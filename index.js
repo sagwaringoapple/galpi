@@ -4,6 +4,8 @@ let _api = null;
 let backdropEl = null;
 let modalEl = null;
 let vpListeners = [];
+let saveTimer = null;
+let currentChatKey = null;
 
 const DEFAULT_SETTINGS = {
     analysisScope: 'recent',
@@ -28,14 +30,8 @@ async function getApi() {
 }
 
 function getCtx() {
-    if (window.SillyTavern?.getContext) {
-        return window.SillyTavern.getContext();
-    }
-
-    if (_api?.getContext) {
-        return _api.getContext();
-    }
-
+    if (window.SillyTavern?.getContext) return window.SillyTavern.getContext();
+    if (_api?.getContext) return _api.getContext();
     return null;
 }
 
@@ -47,9 +43,7 @@ function ensureSettings() {
         ?? window.extension_settings
         ?? {};
 
-    if (!store[EXT_KEY]) {
-        store[EXT_KEY] = { ...DEFAULT_SETTINGS };
-    }
+    if (!store[EXT_KEY]) store[EXT_KEY] = { ...DEFAULT_SETTINGS };
 
     for (const [key, value] of Object.entries(DEFAULT_SETTINGS)) {
         if (store[EXT_KEY][key] === undefined) {
@@ -66,21 +60,109 @@ async function saveSettings() {
             _api?.saveSettingsDebounced
             ?? window.saveSettingsDebounced
             ?? (() => {});
-
         fn();
     } catch (error) {
         console.warn('[갈피] 설정 저장 실패:', error);
     }
 }
 
-function getCurrentChatLabel() {
-    const ctx = getCtx();
-    return (
-        ctx?.name2
-        || ctx?.characterName
-        || ctx?.characters?.[ctx?.characterId]?.name
-        || '현재 채팅'
-    );
+function getCurrentChatInfo() {
+    const ctx = getCtx() || {};
+    const characterId = ctx.characterId ?? window.this_chid ?? 'no-character';
+    const chatId =
+        ctx.chatId
+        ?? ctx.chat_id
+        ?? ctx.chat?.[0]?.chat_id
+        ?? location.pathname
+        ?? 'no-chat';
+
+    const name =
+        ctx.name2
+        || ctx.characterName
+        || ctx.characters?.[characterId]?.name
+        || '현재 채팅';
+
+    return {
+        name,
+        key: `${characterId}::${chatId}`,
+    };
+}
+
+function chatStorageKey(key) {
+    return `galpi.chat.${key}`;
+}
+
+function loadChatData(key) {
+    const fallback = {
+        cards: [],
+        activeTab: 'cards',
+        updatedAt: null,
+    };
+
+    try {
+        const raw = localStorage.getItem(chatStorageKey(key));
+        return raw ? { ...fallback, ...JSON.parse(raw) } : fallback;
+    } catch (error) {
+        console.error('[갈피] 채팅 데이터 불러오기 실패:', error);
+        return fallback;
+    }
+}
+
+function collectCards() {
+    if (!modalEl) return [];
+
+    return [...modalEl.querySelectorAll('.galpi-card')].map((card) => ({
+        id: card.dataset.id,
+        title: card.querySelector('.galpi-card-title')?.value || '',
+        content: card.querySelector('.galpi-card-content')?.value || '',
+        memo: card.querySelector('.galpi-card-memo')?.value || '',
+    }));
+}
+
+function saveCurrentChat() {
+    if (!currentChatKey || !modalEl) return;
+
+    const activeTab = modalEl.querySelector('.galpi-tab.active')?.dataset.tab || 'cards';
+
+    const payload = {
+        cards: collectCards(),
+        activeTab,
+        updatedAt: new Date().toISOString(),
+    };
+
+    try {
+        localStorage.setItem(chatStorageKey(currentChatKey), JSON.stringify(payload));
+        setSaveState('저장됨');
+    } catch (error) {
+        console.error('[갈피] 채팅 데이터 저장 실패:', error);
+        setSaveState('저장 실패');
+    }
+}
+
+function scheduleSave() {
+    if (!ensureSettings().autoSave) {
+        setSaveState('수정됨');
+        return;
+    }
+
+    clearTimeout(saveTimer);
+    setSaveState('저장 중…');
+    saveTimer = setTimeout(saveCurrentChat, 450);
+}
+
+function setSaveState(text) {
+    const el = modalEl?.querySelector('#galpi-save-state');
+    if (el) el.textContent = text;
+}
+
+function esc(value = '') {
+    const div = document.createElement('div');
+    div.textContent = String(value);
+    return div.innerHTML;
+}
+
+function makeCardId() {
+    return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
 function positionModal() {
@@ -130,21 +212,22 @@ function buildModal() {
 
         <div class="galpi-modal-body">
             <section class="galpi-view active" data-view="cards">
-                <div class="galpi-empty">
-                    <div class="galpi-empty-icon">🗂️</div>
-                    <b>아직 스토리 카드가 없어요.</b>
-                    <span>다음 버전에서 카드 생성과 저장 기능을 연결합니다.</span>
+                <div class="galpi-card-toolbar">
+                    <div>
+                        <div class="galpi-section-title">스토리 카드</div>
+                        <div id="galpi-card-count" class="galpi-muted">0개</div>
+                    </div>
+                    <button id="galpi-new-card" class="menu_button" type="button">+ 새 카드</button>
                 </div>
-                <button id="galpi-new-card" class="menu_button galpi-wide" type="button" disabled>
-                    + 새 카드
-                </button>
+
+                <div id="galpi-card-list" class="galpi-card-list"></div>
             </section>
 
             <section class="galpi-view" data-view="advisor">
                 <div class="galpi-empty">
                     <div class="galpi-empty-icon">✨</div>
                     <b>AI 전개 상담</b>
-                    <span>현재 롤플을 분석해 전개 후보를 제안하는 기능이 들어올 자리입니다.</span>
+                    <span>다음 버전에서 현재 롤플 분석과 전개 추천을 연결합니다.</span>
                 </div>
             </section>
 
@@ -158,15 +241,14 @@ function buildModal() {
         </div>
 
         <div class="galpi-modal-footer">
-            <span class="galpi-version">v0.1.0</span>
-            <button id="galpi-footer-close" class="menu_button" type="button">닫기</button>
+            <span id="galpi-save-state" class="galpi-save-state">저장됨</span>
+            <span class="galpi-version">v0.2.0</span>
         </div>
     `;
 
     document.documentElement.appendChild(modalEl);
 
     modalEl.querySelector('#galpi-close').onclick = closeModal;
-    modalEl.querySelector('#galpi-footer-close').onclick = closeModal;
 
     modalEl.querySelectorAll('.galpi-tab').forEach((button) => {
         button.addEventListener('click', () => {
@@ -179,16 +261,119 @@ function buildModal() {
             modalEl.querySelectorAll('.galpi-view').forEach((view) => {
                 view.classList.toggle('active', view.dataset.view === tab);
             });
+
+            scheduleSave();
         });
+    });
+
+    modalEl.querySelector('#galpi-new-card').addEventListener('click', () => {
+        const cards = collectCards();
+        cards.push({
+            id: makeCardId(),
+            title: '새 전개 카드',
+            content: '',
+            memo: '',
+        });
+        renderCards(cards);
+        scheduleSave();
+
+        const last = modalEl.querySelector('.galpi-card:last-child .galpi-card-title');
+        last?.focus();
+        last?.select();
+    });
+
+    modalEl.querySelector('#galpi-card-list').addEventListener('input', (event) => {
+        if (
+            event.target.matches('.galpi-card-title')
+            || event.target.matches('.galpi-card-content')
+            || event.target.matches('.galpi-card-memo')
+        ) {
+            scheduleSave();
+        }
+    });
+
+    modalEl.querySelector('#galpi-card-list').addEventListener('click', (event) => {
+        const deleteButton = event.target.closest('.galpi-delete-card');
+        if (!deleteButton) return;
+
+        deleteButton.closest('.galpi-card')?.remove();
+
+        if (!modalEl.querySelector('.galpi-card')) {
+            renderCards([]);
+        } else {
+            updateCardCount();
+        }
+
+        scheduleSave();
+    });
+}
+
+function renderCards(cards) {
+    const list = modalEl?.querySelector('#galpi-card-list');
+    if (!list) return;
+
+    if (!cards.length) {
+        list.innerHTML = `
+            <div class="galpi-empty galpi-card-empty">
+                <div class="galpi-empty-icon">🗂️</div>
+                <b>아직 스토리 카드가 없어요.</b>
+                <span>오른쪽 위의 ‘+ 새 카드’를 눌러 전개 아이디어를 저장해보세요.</span>
+            </div>
+        `;
+        updateCardCount();
+        return;
+    }
+
+    list.innerHTML = cards.map((card) => `
+        <article class="galpi-card" data-id="${esc(card.id)}">
+            <div class="galpi-card-head">
+                <input
+                    class="text_pole galpi-card-title"
+                    value="${esc(card.title)}"
+                    placeholder="카드 제목">
+                <button class="menu_button galpi-delete-card" type="button">삭제</button>
+            </div>
+
+            <textarea
+                class="text_pole galpi-card-content"
+                placeholder="가능한 전개와 목적을 적으세요.">${esc(card.content)}</textarea>
+
+            <textarea
+                class="text_pole galpi-card-memo"
+                placeholder="사용하기 좋은 시점, 피할 요소, 개인 메모">${esc(card.memo)}</textarea>
+        </article>
+    `).join('');
+
+    updateCardCount();
+}
+
+function updateCardCount() {
+    const count = modalEl?.querySelectorAll('.galpi-card').length || 0;
+    const el = modalEl?.querySelector('#galpi-card-count');
+    if (el) el.textContent = `${count}개`;
+}
+
+function switchTab(tab) {
+    modalEl.querySelectorAll('.galpi-tab').forEach((button) => {
+        button.classList.toggle('active', button.dataset.tab === tab);
+    });
+
+    modalEl.querySelectorAll('.galpi-view').forEach((view) => {
+        view.classList.toggle('active', view.dataset.view === tab);
     });
 }
 
 function openModal() {
-    if (!backdropEl || !modalEl) {
-        buildModal();
-    }
+    if (!backdropEl || !modalEl) buildModal();
 
-    modalEl.querySelector('#galpi-chat-label').textContent = getCurrentChatLabel();
+    const chat = getCurrentChatInfo();
+    currentChatKey = chat.key;
+    const data = loadChatData(currentChatKey);
+
+    modalEl.querySelector('#galpi-chat-label').textContent = chat.name;
+    renderCards(Array.isArray(data.cards) ? data.cards : []);
+    switchTab(data.activeTab || 'cards');
+    setSaveState('저장됨');
 
     backdropEl.style.display = 'block';
     modalEl.style.display = 'flex';
@@ -206,6 +391,8 @@ function openModal() {
 }
 
 function closeModal() {
+    saveCurrentChat();
+
     if (backdropEl) backdropEl.style.display = 'none';
     if (modalEl) modalEl.style.display = 'none';
 
@@ -214,7 +401,6 @@ function closeModal() {
             window.visualViewport.removeEventListener('resize', fn);
             window.visualViewport.removeEventListener('scroll', fn);
         });
-
         vpListeners = [];
     }
 }
@@ -329,7 +515,7 @@ jQuery(() => {
         try {
             await getApi();
             ensureSettings();
-            console.log('[갈피] v0.1.0 완전 로드');
+            console.log('[갈피] v0.2.0 완전 로드');
         } catch (error) {
             console.error('[갈피] 초기화 오류:', error);
         }
