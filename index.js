@@ -2,7 +2,6 @@ import { saveSettingsDebounced } from '../../../../script.js';
 import { extension_settings, getContext } from '../../../extensions.js';
 
 const MODULE_NAME = 'galpi';
-
 const DEFAULT_SETTINGS = {
     recentMessageCount: 20,
     analysisScope: 'recent',
@@ -50,10 +49,7 @@ function getChatIdentity() {
         || context.characters?.[characterId]?.name
         || '현재 채팅';
 
-    return {
-        key: `${characterId}::${chatId}`,
-        name,
-    };
+    return { key: `${characterId}::${chatId}`, name };
 }
 
 function storageKey(chatKey) {
@@ -61,12 +57,7 @@ function storageKey(chatKey) {
 }
 
 function loadChatData(chatKey) {
-    const fallback = {
-        memo: '',
-        cards: [],
-        activeTab: 'advisor',
-        updatedAt: null,
-    };
+    const fallback = { memo: '', cards: [], activeTab: 'advisor' };
 
     try {
         const raw = localStorage.getItem(storageKey(chatKey));
@@ -77,47 +68,41 @@ function loadChatData(chatKey) {
     }
 }
 
-function saveChatData(chatKey, data) {
-    try {
-        localStorage.setItem(storageKey(chatKey), JSON.stringify({
-            ...data,
-            updatedAt: new Date().toISOString(),
-        }));
-        $('#galpi_save_state').text('저장됨');
-    } catch (error) {
-        console.error('[갈피] 채팅 데이터 저장 실패:', error);
-        $('#galpi_save_state').text('저장 실패');
-    }
-}
-
 function collectCurrentChatData() {
     const cards = [];
 
-    $('#galpi_card_list .galpi-card').each(function () {
+    document.querySelectorAll('#galpi_card_list .galpi-card').forEach((card) => {
         cards.push({
-            id: String($(this).data('id')),
-            title: $(this).find('.galpi-card-title').val() || '',
-            content: $(this).find('.galpi-card-content').val() || '',
+            id: String(card.dataset.id),
+            title: card.querySelector('.galpi-card-title')?.value || '',
+            content: card.querySelector('.galpi-card-content')?.value || '',
         });
     });
 
     return {
-        memo: $('#galpi_chat_memo').val() || '',
+        memo: document.querySelector('#galpi_chat_memo')?.value || '',
         cards,
-        activeTab: $('.galpi-modal-tab.active').data('tab') || 'advisor',
+        activeTab: document.querySelector('.galpi-modal-tab.active')?.dataset.tab || 'advisor',
     };
 }
 
 function saveCurrentChat() {
-    if (currentChatKey) {
-        saveChatData(currentChatKey, collectCurrentChatData());
+    if (!currentChatKey) return;
+
+    try {
+        localStorage.setItem(
+            storageKey(currentChatKey),
+            JSON.stringify({ ...collectCurrentChatData(), updatedAt: new Date().toISOString() }),
+        );
+        $('#galpi_save_state').text('저장됨');
+    } catch (error) {
+        console.error('[갈피] 저장 실패:', error);
+        $('#galpi_save_state').text('저장 실패');
     }
 }
 
 function scheduleChatSave() {
-    const settings = ensureGlobalSettings();
-
-    if (!settings.autoSave || !currentChatKey) {
+    if (!ensureGlobalSettings().autoSave || !currentChatKey) {
         $('#galpi_save_state').text('수정됨');
         return;
     }
@@ -130,14 +115,19 @@ function scheduleChatSave() {
 function createSettingsPanel() {
     if ($('#galpi_settings').length) return;
 
-    const html = `
+    const target = $('#extensions_settings2');
+    if (!target.length) {
+        console.warn('[갈피] 확장 설정 영역을 찾지 못했습니다.');
+        return;
+    }
+
+    target.append(`
         <div id="galpi_settings" class="galpi-settings extension_container">
             <div class="inline-drawer">
                 <div class="inline-drawer-toggle inline-drawer-header">
                     <b>📖 갈피</b>
                     <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
                 </div>
-
                 <div class="inline-drawer-content">
                     <p class="galpi-muted">
                         모든 채팅방에 공통으로 적용되는 기본 설정입니다.
@@ -169,10 +159,7 @@ function createSettingsPanel() {
                 </div>
             </div>
         </div>
-    `;
-
-    const target = $('#extensions_settings2');
-    if (target.length) target.append(html);
+    `);
 
     const settings = ensureGlobalSettings();
     $('#galpi_setting_scope').val(settings.analysisScope);
@@ -181,61 +168,62 @@ function createSettingsPanel() {
     $('#galpi_setting_autosave').prop('checked', settings.autoSave);
 
     $('#galpi_setting_scope').on('change', function () {
-        ensureGlobalSettings().analysisScope = $(this).val();
+        settings.analysisScope = $(this).val();
         saveSettingsDebounced();
     });
 
     $('#galpi_setting_recent').on('change', function () {
-        const value = Math.max(2, Math.min(200, Number($(this).val()) || 20));
-        $(this).val(value);
-        ensureGlobalSettings().recentMessageCount = value;
+        settings.recentMessageCount = Math.max(2, Math.min(200, Number($(this).val()) || 20));
+        $(this).val(settings.recentMessageCount);
         saveSettingsDebounced();
     });
 
     $('#galpi_setting_injection').on('change', function () {
-        ensureGlobalSettings().defaultInjectionMode = $(this).val();
+        settings.defaultInjectionMode = $(this).val();
         saveSettingsDebounced();
     });
 
     $('#galpi_setting_autosave').on('change', function () {
-        ensureGlobalSettings().autoSave = this.checked;
+        settings.autoSave = this.checked;
         saveSettingsDebounced();
     });
 }
 
 function addMenuItem() {
-    if ($('#galpi_menu_item').length) return true;
+    if (document.querySelector('#galpi_menu_item')) return true;
 
-    const menu = $('#extensionsMenu');
-    if (!menu.length) return false;
+    const menu = document.querySelector('#extensionsMenu');
+    if (!menu) return false;
 
-    menu.append(`
-        <div id="galpi_menu_item"
-             class="list-group-item flex-container flexGap5 interactable"
-             tabindex="0"
-             role="button">
-            <i class="fa-solid fa-book-open"></i>
-            <span>갈피</span>
-        </div>
-    `);
-
+    const item = document.createElement('div');
+    item.id = 'galpi_menu_item';
+    item.className = 'list-group-item flex-container flexGap5 interactable';
+    item.tabIndex = 0;
+    item.setAttribute('role', 'button');
+    item.innerHTML = `
+        <i class="fa-solid fa-book-open"></i>
+        <span>갈피</span>
+    `;
+    menu.appendChild(item);
     return true;
 }
 
 function ensureMenuItem() {
     if (addMenuItem()) return;
 
-    let count = 0;
-    const timer = setInterval(() => {
-        count++;
-        if (addMenuItem() || count >= 60) clearInterval(timer);
-    }, 300);
+    const observer = new MutationObserver(() => {
+        if (addMenuItem()) observer.disconnect();
+    });
+
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    setTimeout(() => observer.disconnect(), 30000);
 }
 
 function createModal() {
-    if ($('#galpi_modal_overlay').length) return;
+    if (document.querySelector('#galpi_modal_overlay')) return;
 
-    $('body').append(`
+    document.body.insertAdjacentHTML('beforeend', `
         <div id="galpi_modal_overlay" class="galpi-modal-overlay" aria-hidden="true">
             <section class="galpi-modal" role="dialog" aria-modal="true">
                 <header class="galpi-modal-header">
@@ -298,17 +286,18 @@ function createModal() {
 }
 
 function renderCards(cards = []) {
-    const list = $('#galpi_card_list');
+    const list = document.querySelector('#galpi_card_list');
+    if (!list) return;
 
     if (!cards.length) {
-        list.html(`
+        list.innerHTML = `
             <div class="galpi-empty-state galpi-small-empty">
                 <div class="galpi-empty-icon">🗂️</div>
                 <b>아직 저장된 카드가 없습니다.</b>
             </div>
-        `);
+        `;
     } else {
-        list.html(cards.map(card => `
+        list.innerHTML = cards.map(card => `
             <article class="galpi-card" data-id="${escapeHtml(card.id)}">
                 <input class="text_pole galpi-card-title"
                     value="${escapeHtml(card.title)}" placeholder="카드 제목">
@@ -316,23 +305,23 @@ function renderCards(cards = []) {
                     placeholder="가능한 전개를 적으세요.">${escapeHtml(card.content)}</textarea>
                 <button class="menu_button galpi-delete-card" type="button">삭제</button>
             </article>
-        `).join(''));
+        `).join('');
     }
 
-    $('#galpi_card_count').text(`${$('#galpi_card_list .galpi-card').length}개의 카드`);
+    $('#galpi_card_count').text(`${list.querySelectorAll('.galpi-card').length}개의 카드`);
 }
 
 function switchTab(tab) {
-    $('.galpi-modal-tab').removeClass('active');
-    $(`.galpi-modal-tab[data-tab="${tab}"]`).addClass('active');
-    $('.galpi-tab-view').removeClass('active');
-    $(`.galpi-tab-view[data-view="${tab}"]`).addClass('active');
+    document.querySelectorAll('.galpi-modal-tab').forEach((button) => {
+        button.classList.toggle('active', button.dataset.tab === tab);
+    });
+
+    document.querySelectorAll('.galpi-tab-view').forEach((view) => {
+        view.classList.toggle('active', view.dataset.view === tab);
+    });
 }
 
-function openGalpiModal(event) {
-    event?.preventDefault?.();
-    event?.stopPropagation?.();
-
+function openGalpiModal() {
     createModal();
 
     const identity = getChatIdentity();
@@ -345,69 +334,97 @@ function openGalpiModal(event) {
     switchTab(data.activeTab || 'advisor');
     $('#galpi_save_state').text('저장됨');
 
-    $('#galpi_modal_overlay').addClass('open').attr('aria-hidden', 'false');
-    $('body').addClass('galpi-modal-open');
+    const overlay = document.querySelector('#galpi_modal_overlay');
+    overlay.classList.add('open');
+    overlay.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('galpi-modal-open');
 
-    // 확장 메뉴가 열린 상태라면 닫기
-    $('#extensionsMenu').removeClass('open');
+    console.log('[갈피] 모달 열기 성공');
 }
 
 function closeGalpiModal() {
     saveCurrentChat();
-    $('#galpi_modal_overlay').removeClass('open').attr('aria-hidden', 'true');
-    $('body').removeClass('galpi-modal-open');
+    document.querySelector('#galpi_modal_overlay')?.classList.remove('open');
+    document.querySelector('#galpi_modal_overlay')?.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('galpi-modal-open');
 }
 
-function bindEvents() {
-    // 동적 메뉴에도 확실히 반응하도록 document 위임 사용
-    $(document)
-        .off('click.galpi', '#galpi_menu_item')
-        .on('click.galpi', '#galpi_menu_item', openGalpiModal);
+function bindNativeMenuCapture() {
+    // SillyTavern 메뉴 자체의 클릭 처리보다 먼저 실행하기 위해 capture=true 사용
+    document.addEventListener('pointerdown', (event) => {
+        const item = event.target.closest?.('#galpi_menu_item');
+        if (!item) return;
 
-    $(document)
-        .off('touchend.galpi', '#galpi_menu_item')
-        .on('touchend.galpi', '#galpi_menu_item', function (event) {
-            event.preventDefault();
-            openGalpiModal(event);
-        });
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+        openGalpiModal();
+    }, true);
 
-    $(document).on('click.galpiModal', '#galpi_modal_close', closeGalpiModal);
+    // 키보드 접근
+    document.addEventListener('keydown', (event) => {
+        const item = event.target.closest?.('#galpi_menu_item');
+        if (!item || !['Enter', ' '].includes(event.key)) return;
 
-    $(document).on('click.galpiOverlay', '#galpi_modal_overlay', function (event) {
-        if (event.target === this) closeGalpiModal();
+        event.preventDefault();
+        event.stopPropagation();
+        openGalpiModal();
+    }, true);
+}
+
+function bindModalEvents() {
+    document.addEventListener('click', (event) => {
+        if (event.target.closest('#galpi_modal_close')) {
+            closeGalpiModal();
+            return;
+        }
+
+        if (event.target.id === 'galpi_modal_overlay') {
+            closeGalpiModal();
+            return;
+        }
+
+        const tab = event.target.closest('.galpi-modal-tab');
+        if (tab) {
+            switchTab(tab.dataset.tab);
+            scheduleChatSave();
+            return;
+        }
+
+        if (event.target.closest('#galpi_add_card')) {
+            const data = collectCurrentChatData();
+            data.cards.push({
+                id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+                title: '새 전개 카드',
+                content: '',
+            });
+            renderCards(data.cards);
+            scheduleChatSave();
+            return;
+        }
+
+        const deleteButton = event.target.closest('.galpi-delete-card');
+        if (deleteButton) {
+            deleteButton.closest('.galpi-card')?.remove();
+            const data = collectCurrentChatData();
+            renderCards(data.cards);
+            scheduleChatSave();
+            return;
+        }
+
+        if (event.target.closest('#galpi_manual_save')) {
+            saveCurrentChat();
+        }
     });
 
-    $(document).on('click.galpiTabs', '.galpi-modal-tab', function () {
-        switchTab($(this).data('tab'));
-        scheduleChatSave();
+    document.addEventListener('input', (event) => {
+        if (event.target.matches('#galpi_chat_memo, .galpi-card-title, .galpi-card-content')) {
+            scheduleChatSave();
+        }
     });
 
-    $(document).on('input.galpiMemo', '#galpi_chat_memo', scheduleChatSave);
-
-    $(document).on('click.galpiAddCard', '#galpi_add_card', function () {
-        const current = collectCurrentChatData();
-        current.cards.push({
-            id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-            title: '새 전개 카드',
-            content: '',
-        });
-        renderCards(current.cards);
-        scheduleChatSave();
-    });
-
-    $(document).on('input.galpiCard', '.galpi-card-title, .galpi-card-content', scheduleChatSave);
-
-    $(document).on('click.galpiDelete', '.galpi-delete-card', function () {
-        $(this).closest('.galpi-card').remove();
-        const current = collectCurrentChatData();
-        renderCards(current.cards);
-        scheduleChatSave();
-    });
-
-    $(document).on('click.galpiSave', '#galpi_manual_save', saveCurrentChat);
-
-    $(document).on('keydown.galpiEscape', function (event) {
-        if (event.key === 'Escape' && $('#galpi_modal_overlay').hasClass('open')) {
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && document.querySelector('#galpi_modal_overlay.open')) {
             closeGalpiModal();
         }
     });
@@ -416,9 +433,10 @@ function bindEvents() {
 jQuery(async () => {
     ensureGlobalSettings();
     createSettingsPanel();
-    ensureMenuItem();
     createModal();
-    bindEvents();
+    ensureMenuItem();
+    bindNativeMenuCapture();
+    bindModalEvents();
 
-    console.log('[갈피] v0.0.3 로드 완료');
+    console.log('[갈피] v0.0.4 로드 완료');
 });
