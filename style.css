@@ -1,177 +1,179 @@
-.galpi-settings label {
-    display: block;
-    margin: 12px 0 5px;
-    font-weight: 600;
-}
-.galpi-settings .text_pole { width: 100%; }
-.galpi-muted { opacity: 0.68; line-height: 1.45; }
-.galpi-switch-row {
-    display: flex !important;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    padding: 10px 0;
-}
-.galpi-modal-open { overflow: hidden; }
-
-.galpi-modal-overlay {
+#galpi-backdrop {
+    display: none;
     position: fixed;
     inset: 0;
     z-index: 2147483000;
-    display: none;
-    align-items: center;
-    justify-content: center;
-    padding: 18px;
-    background: rgba(0, 0, 0, 0.62);
+    background: rgba(0, 0, 0, 0.58);
     backdrop-filter: blur(3px);
 }
-.galpi-modal-overlay.open { display: flex !important; }
 
-.galpi-modal {
-    display: flex;
+#galpi-modal {
+    display: none;
+    position: fixed;
+    z-index: 2147483001;
     flex-direction: column;
-    width: min(760px, 100%);
-    max-height: calc(100vh - 36px);
     overflow: hidden;
+    box-sizing: border-box;
     color: var(--SmartThemeBodyColor, #eee);
     background: var(--SmartThemeBlurTintColor, #171717);
     border: 1px solid var(--SmartThemeBorderColor, #555);
-    border-radius: 20px;
-    box-shadow: 0 18px 70px rgba(0, 0, 0, 0.55);
+    border-radius: 18px;
+    box-shadow: 0 20px 70px rgba(0, 0, 0, 0.55);
 }
+
 .galpi-modal-header {
     display: flex;
     align-items: center;
-    gap: 13px;
-    padding: 18px 20px;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 17px 18px;
     border-bottom: 1px solid var(--SmartThemeBorderColor, #444);
 }
-.galpi-brand-mark {
+
+.galpi-modal-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+
+.galpi-modal-icon {
     display: grid;
     place-items: center;
-    width: 45px;
-    height: 45px;
-    flex: 0 0 45px;
+    width: 43px;
+    height: 43px;
+    flex: 0 0 43px;
     border-radius: 13px;
-    font-size: 23px;
+    font-size: 22px;
     background: rgba(255,255,255,.08);
 }
-.galpi-modal-heading { min-width: 0; flex: 1; }
-.galpi-modal-heading h2 { margin: 0; font-size: 1.35rem; }
-.galpi-chat-name {
-    margin-top: 3px;
+
+.galpi-title-main {
+    font-size: 1.25rem;
+    font-weight: 800;
+}
+
+.galpi-title-sub {
+    margin-top: 2px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    opacity: .68;
+    opacity: .65;
 }
-.galpi-icon-button {
-    width: 42px;
-    height: 42px;
+
+.galpi-close {
+    width: 40px;
+    height: 40px;
     border: 0;
     border-radius: 50%;
-    font-size: 32px;
     color: inherit;
     background: transparent;
+    font-size: 31px;
+    cursor: pointer;
 }
+
 .galpi-modal-tabs {
     display: flex;
-    gap: 5px;
+    gap: 6px;
     padding: 10px 14px;
     overflow-x: auto;
     border-bottom: 1px solid var(--SmartThemeBorderColor, #444);
 }
-.galpi-modal-tab {
+
+.galpi-tab {
     flex: 0 0 auto;
-    padding: 9px 13px;
+    padding: 8px 13px;
     border: 1px solid transparent;
     border-radius: 999px;
     color: inherit;
     background: transparent;
+    cursor: pointer;
 }
-.galpi-modal-tab.active {
+
+.galpi-tab.active {
     font-weight: 700;
     border-color: var(--SmartThemeBorderColor, #777);
     background: rgba(255,255,255,.09);
 }
+
 .galpi-modal-body {
-    min-height: 390px;
-    padding: 22px;
+    flex: 1;
+    min-height: 360px;
+    padding: 20px;
     overflow-y: auto;
 }
-.galpi-tab-view { display: none; }
-.galpi-tab-view.active { display: block; }
-.galpi-section-title { font-size: 1.08rem; font-weight: 750; }
-.galpi-main-textarea {
-    width: 100%;
-    min-height: 220px;
-    margin-top: 12px;
-    resize: vertical;
+
+.galpi-view {
+    display: none;
 }
-.galpi-board-header {
+
+.galpi-view.active {
+    display: block;
+}
+
+.galpi-empty {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 14px;
-    margin-bottom: 16px;
-}
-.galpi-card-list { display: grid; gap: 13px; }
-.galpi-card {
-    display: grid;
-    gap: 9px;
-    padding: 14px;
-    border: 1px solid var(--SmartThemeBorderColor, #555);
-    border-radius: 14px;
-    background: rgba(255,255,255,.035);
-}
-.galpi-card-title, .galpi-card-content { width: 100%; }
-.galpi-card-title { font-weight: 700; }
-.galpi-card-content { min-height: 130px; resize: vertical; }
-.galpi-delete-card { justify-self: end; }
-.galpi-empty-state {
-    display: flex;
-    min-height: 320px;
+    min-height: 270px;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: 9px;
-    padding: 30px;
+    padding: 24px;
     text-align: center;
     opacity: .72;
 }
-.galpi-small-empty {
-    min-height: 230px;
-    border: 1px dashed var(--SmartThemeBorderColor, #555);
-    border-radius: 14px;
+
+.galpi-empty-icon {
+    font-size: 34px;
 }
-.galpi-empty-icon { font-size: 32px; }
+
+.galpi-wide {
+    width: 100%;
+}
+
 .galpi-modal-footer {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 13px 18px;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 16px;
     border-top: 1px solid var(--SmartThemeBorderColor, #444);
 }
-.galpi-save-state { flex: 1; font-size: .9rem; opacity: .65; }
+
+.galpi-version {
+    font-size: .85rem;
+    opacity: .55;
+}
+
+.galpi-panel-note {
+    opacity: .7;
+    line-height: 1.45;
+}
+
+.galpi-panel-label {
+    display: block;
+    margin: 13px 0 5px;
+    font-weight: 650;
+}
+
+#galpi-drawer .text_pole {
+    width: 100%;
+}
+
+.galpi-check-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 14px 0 5px;
+}
 
 @media (max-width: 600px) {
-    .galpi-modal-overlay {
-        align-items: stretch;
-        padding: 0;
+    #galpi-modal {
+        border-radius: 16px;
     }
-    .galpi-modal {
-        width: 100%;
-        max-height: 100vh;
-        border: 0;
-        border-radius: 0;
-    }
-    .galpi-modal-header { padding: 14px 16px; }
+
     .galpi-modal-body {
         min-height: 0;
-        flex: 1;
-        padding: 18px 16px;
-    }
-    .galpi-modal-footer {
-        padding-bottom: max(13px, env(safe-area-inset-bottom));
     }
 }
