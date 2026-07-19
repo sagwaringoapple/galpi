@@ -1,0 +1,11 @@
+{
+  "display_name": "갈피",
+  "loading_order": 50,
+  "requires": [],
+  "optional": [],
+  "js": "index.js",
+  "css": "style.css",
+  "author": "sagwaringoapple",
+  "version": "0.1.1",
+  "homePage": "https://github.com/sagwaringoapple/galpi"
+}
